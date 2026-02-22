@@ -90,56 +90,6 @@ def divergence_bin(mu, nu, scoring_rule):
 def shift_mean(forecasts, a, b):
     return (forecasts - forecasts.mean(axis=1).reshape(-1, 1)) + a + b*forecasts.mean(axis=1).reshape(-1, 1)
 
-def score_RPC(forecasts, validation, scoring_rule):
-    #fcst_mean = forecasts.mean(axis=1)
-
-    f_bar = forecasts.flatten()
-    expected_divergence = np.mean([divergence(f_bar, forecasts[i, :], scoring_rule=scoring_rule) for i in range(n_years)])
-    entropy_fbar = entropy(f_bar, scoring_rule=scoring_rule)
-
-    pc_f = expected_divergence/entropy_fbar
-
-    score_pi = lambda ab: sum(map(scoring_rule, validation, shift_mean(forecasts, ab[0], ab[1])))
-    score_pi_grad = jax.grad(score_pi, argnums=0)
-
-    a, b = scipy.optimize.minimize(score_pi, [0.0, 1.0], method='BFGS', jac=score_pi_grad).x
-    #b = scipy.stats.linregress(fcst_mean, validation).slope
-
-    pi = shift_mean(forecasts, a, b)
-    pi_bar = pi.flatten()
-    expected_divergence_pi = np.mean([divergence(pi_bar, pi[i, :], scoring_rule=scoring_rule) for i in range(n_years)])
-    entropy_pi_bar = entropy(pi_bar, scoring_rule=scoring_rule)
-
-    pc_pi = expected_divergence_pi/entropy_pi_bar
-
-    RPC = pc_pi/pc_f
-
-    return RPC
-
-def score_RPC_bin(forecasts, validation, scoring_rule):
-    f_bar = forecasts.flatten()
-    expected_divergence = np.mean([divergence_bin(f_bar, forecasts[i], scoring_rule=scoring_rule) for i in range(n_years)])
-    entropy_fbar = entropy_bin(f_bar, scoring_rule=scoring_rule)
-
-    pc_f = expected_divergence/entropy_fbar
-
-    score_pi = lambda ab: sum(map(scoring_rule, validation, jax.scipy.special.expit(ab[0] + ab[1]*jax.scipy.special.logit(forecasts))))
-    score_pi_grad = jax.grad(score_pi, argnums=0)
-
-    a, b = scipy.optimize.minimize(score_pi, [0.0, 1.0], method='BFGS', jac=score_pi_grad).x
-    #b = scipy.stats.linregress(fcst_mean, validation).slope
-
-    pi = jax.scipy.special.expit(a + b*jax.scipy.special.logit(forecasts))
-    pi_bar = pi.mean()
-    expected_divergence_pi = np.mean([divergence_bin(pi_bar, pi[i], scoring_rule=scoring_rule) for i in range(n_years)])
-    entropy_pi_bar = entropy_bin(pi_bar, scoring_rule=scoring_rule)
-
-    pc_pi = expected_divergence_pi/entropy_pi_bar
-
-    RPC = pc_pi/pc_f
-
-    return RPC
-
 def score_SSCrat(forecasts, validation, scoring_rule):
     f_bar = forecasts.flatten()
     entropy_fbar = entropy(f_bar, scoring_rule=scoring_rule)
