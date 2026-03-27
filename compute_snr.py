@@ -93,33 +93,22 @@ def shift_mean(forecasts, a, b):
 def score_SSCrat(forecasts, validation, scoring_rule):
     f_bar = forecasts.flatten()
     entropy_fbar = entropy(f_bar, scoring_rule=scoring_rule)
-    ssc_f = np.mean([entropy(forecasts[i, :], scoring_rule=scoring_rule) for i in range(n_years)])/entropy_fbar
+    ssc_f = np.mean([entropy(forecasts[i, :], scoring_rule=scoring_rule) for i in range(len(validation))])/entropy_fbar
 
     score_pi = lambda ab: sum(scoring_rule(validation, shift_mean(forecasts, ab[0], ab[1])))
     #print(score_pi([0.0, 1.0]))
     score_pi_grad = jax.grad(score_pi, argnums=0)
 
     a, b = scipy.optimize.minimize(score_pi, [0.0, 1.0], method='BFGS', jac=score_pi_grad).x
-    #print(score_pi([0.0, 1.0]), score_pi([a, b]), a, b)
-    #print(score_pi([0.0, 1.0]), score_pi([a, b]))
-
-    # if np.linalg.norm(score_pi_grad([a, b])) > 0.1:
-    #     print("nan")
-    #     return np.nan
 
     pi = shift_mean(forecasts, a, b)
 
     pi_bar = pi.flatten()
-    #print(f_bar, pi_bar)
     entropy_pi_bar = entropy(pi_bar, scoring_rule=scoring_rule)
 
-    #print(np.mean([entropy(pi[i, :], scoring_rule=scoring_rule) for i in range(n_years)]),
-    #      np.mean([entropy(forecasts[i, :], scoring_rule=scoring_rule) for i in range(n_years)]))
-
-    ssc_pi = np.mean([entropy(pi[i, :], scoring_rule=scoring_rule) for i in range(n_years)])/entropy_pi_bar
+    ssc_pi = np.mean([entropy(pi[i, :], scoring_rule=scoring_rule) for i in range(len(validation))])/entropy_pi_bar
+    #ssc_pi = np.mean([scoring_rule(validation[i], pi[i, :]) for i in range(len(validation))])/entropy_pi_bar
     SSCrat = ssc_f/ssc_pi
-
-    #print(SSCrat)
 
     return ssc_f, ssc_pi
 
@@ -133,7 +122,6 @@ def score_SSCrat_bin(forecasts, validation, scoring_rule):
     score_pi_grad = jax.grad(score_pi, argnums=0)
 
     a, b = scipy.optimize.minimize(score_pi, [0.0, 1.0], method='BFGS', jac=score_pi_grad).x
-    print(score_pi_grad([a, b]), a, b)
 
     pi = jax.scipy.special.expit(a + b*jax.scipy.special.logit(forecasts))
     pi_bar = pi.mean()
